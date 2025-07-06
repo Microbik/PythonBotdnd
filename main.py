@@ -177,8 +177,8 @@ async def dice(ctx, *, params):
                            color=0x7289da)
         em.set_author(name=f"{user}", icon_url=ctx.author.avatar)
 
-
     elif params.find("d") != -1:
+
 
         '''кубы с d и модификаторами'''
 
@@ -188,6 +188,13 @@ async def dice(ctx, *, params):
         count = 0
         number = 0
         dice_pattern = re.compile(r'(\d*)d(\d+)([+-]\d+)?')
+
+        paramslast = lparams[-1]
+        isextramod = False
+
+        if paramslast.find("+") != -1 or paramslast.find("-") != -1 or paramslast.find("-%") != -1 or paramslast.find("+%") != -1:
+            lparams.pop()
+            isextramod = True
 
         for cube in lparams:
             match = dice_pattern.fullmatch(cube.strip())
@@ -243,22 +250,82 @@ async def dice(ctx, *, params):
         else:
             phrs = phrasesd[np.random.randint(0, len(phrasesd))]
 
-        em = discord.Embed(title=f'**{phrs}**',
-                           description=f"🎲 You Rolled **{res}**. (*{plu}*)",
-                           color=0x7289da)
+        if isextramod == False:
 
-        em.set_author(name=f"{user}", icon_url=ctx.author.avatar)
+            em = discord.Embed(title=f'**{phrs}**',
+                               description=f"🎲 You Rolled **{res}**. (*{plu}*)",
+                               color=0x7289da)
+
+            em.set_author(name=f"{user}", icon_url=ctx.author.avatar)
+
+        else:
+            match paramslast:
+                case p if (p.find('+%') != -1):
+                    resnew = res + int(res * (int(paramslast[2:]) / 100))
+                case p if (p.find('-%') != -1):
+                    resnew = res - int(res * (int(paramslast[2:]) / 100))
+                case p if (p.find('+') != -1):
+                    resnew = res + int(paramslast[1:])
+                case p if (p.find('-') != -1):
+                    resnew = res - int(paramslast[1:])
+
+            em = discord.Embed(title=f'**{phrs}**',
+                               description=f"🎲 You Rolled **{resnew}**, Actually **{res}{paramslast}** (*{plu}*)",
+                               color=0x7289da)
+
+            em.set_author(name=f"{user}", icon_url=ctx.author.avatar)
+
 
     else:
 
-        '''1 или промежуток'''
-
-        if params.find(' ') != -1:
+        '''1 или промежуток или +-'''
+        if params.find(" +") != -1 or params.find(" -") != -1 or params.find(" -%") != -1 or params.find(" +%") != -1:
             lparams = params.split(' ')
 
             if len(lparams) > 2:
                 em = discord.Embed(title=f'**ERROR**',
-                                   description=f"Use 1-2 integer numbers, words divided by (',') or follow [int]d[int] pattern!",
+                                   description=f"Use 1-2 integer numbers or +-% statements, words divided by (',') or follow [int]d[int] pattern!",
+                                   color=0xff0000)
+                await ctx.send(embed=em)
+                return
+
+            num = int(lparams[0])
+            func = lparams[1]
+
+            res = np.random.randint(1, int(num) + 1)
+
+            if res == int(num):
+                phrs = phrasesmax[np.random.randint(0, len(phrasesmax))]
+            elif res == 1:
+                phrs = phrasesmin[np.random.randint(0, len(phrasesmin))]
+            elif res == 42:
+                phrs = phrasesxtra[0]
+            elif res == 69:
+                phrs = phrasesxtra[1]
+            else:
+                phrs = phrases[np.random.randint(0, len(phrases))]
+
+            match func:
+                case p if (p.find('+%') != -1):
+                    resnew = res + int(res * (int(func[2:]) / 100))
+                case p if (p.find('-%') != -1):
+                    resnew = res - int(res * (int(func[2:]) / 100))
+                case p if (p.find('+') != -1):
+                    resnew = res + int(func[1:])
+                case p if (p.find('-') != -1):
+                    resnew = res - int(func[1:])
+
+            em = discord.Embed(title=f'**{phrs}**',
+                               description=f"🎲 You Rolled **{resnew}** on d{num}. (actually **{res}{func}**)",
+                               color=0x7289da)
+            em.set_author(name=f"{user}", icon_url=ctx.author.avatar)
+
+        elif params.find(' ') != -1:
+            lparams = params.split(' ')
+
+            if len(lparams) > 2:
+                em = discord.Embed(title=f'**ERROR**',
+                                   description=f"Use 1-2 integer numbers or +-% statements, words divided by (',') or follow [int]d[int] pattern!",
                                    color=0xff0000)
                 await ctx.send(embed=em)
                 return
@@ -300,7 +367,7 @@ async def dice(ctx, *, params):
                 phrs = phrases[np.random.randint(0, len(phrases))]
 
             em = discord.Embed(title=f'**{phrs}**',
-                               description=f"🎲 You Rolled **{res}**",
+                               description=f"🎲 You Rolled **{res}** on d{num}.",
                                color=0x7289da)
             em.set_author(name=f"{user}", icon_url=ctx.author.avatar)
 
