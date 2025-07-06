@@ -192,7 +192,7 @@ async def dice(ctx, *, params):
         paramslast = lparams[-1]
         isextramod = False
 
-        if paramslast.find("+") != -1 or paramslast.find("-") != -1 or paramslast.find("-%") != -1 or paramslast.find("+%") != -1:
+        if (paramslast.find("+") != -1 or paramslast.find("-") != -1 or paramslast.find("-%") != -1 or paramslast.find("+%") != -1) and not dice_pattern.fullmatch(paramslast.strip()):
             lparams.pop()
             isextramod = True
 
