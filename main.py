@@ -171,18 +171,22 @@ async def dice(ctx, *, params):
             await ctx.send(embed=em)
             return
 
-        if params.find(",") != -1:
+        if params.find(",") != -1 and params.find("d") == -1:
             '''выбор вариантов'''
             try:
-                lparams = params.split(",")
+                lparams = [p.strip() for p in params.split(",")]
                 if not lparams:
                     raise ValueError("No options provided after splitting")
 
+                # Проверяем, что это действительно выбор вариантов, а не dice с запятой
+                dice_pattern = re.compile(r'(\d*)d(\d+)([+-]\d+)?')
+                has_dice = any(dice_pattern.search(param) for param in lparams)
+
+                if has_dice:
+                    raise ValueError("Invalid format - use dice without commas or options with commas")
+
                 res = lparams[np.random.randint(0, len(lparams))]
                 phrs = phrases[np.random.randint(0, len(phrases))]
-
-                if res[0] == " ":
-                    res = res[1:]
 
                 em = discord.Embed(title=f'**{phrs}**',
                                    description=f"{res}",
@@ -199,23 +203,41 @@ async def dice(ctx, *, params):
         elif params.find("d") != -1:
             '''кубы с d и модификаторами'''
             try:
-                lparams = params.split(" ")
+                # Разделяем параметры на кубы и модификаторы
+                parts = params.split(" ")
+                dice_parts = []
+                modifiers = []
+
+                # Разделяем кубы и модификаторы
+                dice_pattern = re.compile(r'(\d*)d(\d+)([+-]\d+)?')
+                modifier_pattern = re.compile(r'^([+-]\d+%?)$')
+
+                for part in parts:
+                    part = part.strip()
+                    if dice_pattern.fullmatch(part):
+                        dice_parts.append(part)
+                    elif modifier_pattern.fullmatch(part):
+                        modifiers.append(part)
+                    else:
+                        em = discord.Embed(title='**ERROR**',
+                                           description=f"Invalid format: `{part}`\nUse dice format: `XdY±Z` and modifiers: `±N` or `±%N`",
+                                           color=0xff0000)
+                        await ctx.send(embed=em)
+                        return
+
+                if not dice_parts:
+                    em = discord.Embed(title='**ERROR**',
+                                       description="No valid dice found! Use format like `2d6+1`",
+                                       color=0xff0000)
+                    await ctx.send(embed=em)
+                    return
+
+                # Бросаем кубы
                 results = []
                 res = 0
                 count = 0
-                number = 0
-                dice_pattern = re.compile(r'(\d*)d(\d+)([+-]\d+)?')
 
-                paramslast = lparams[-1]
-                isextramod = False
-
-                if (paramslast.find("+") != -1 or paramslast.find("-") != -1 or
-                    paramslast.find("-%") != -1 or paramslast.find("+%") != -1) and not dice_pattern.fullmatch(
-                    paramslast.strip()):
-                    lparams.pop()
-                    isextramod = True
-
-                for cube in lparams:
+                for cube in dice_parts:
                     match = dice_pattern.fullmatch(cube.strip())
                     if not match:
                         em = discord.Embed(title='**ERROR**',
@@ -236,7 +258,6 @@ async def dice(ctx, *, params):
                         return
 
                     count += dice_count
-                    number += dice_sides
 
                     if count > 100:
                         em = discord.Embed(title='**ERROR**',
@@ -268,42 +289,52 @@ async def dice(ctx, *, params):
                         plu += f" + {roll}"
                 plu = plu[3:]
 
+                # Применяем модификаторы в порядке их указания
+                base_result = res
+                final_result = res
+                modifier_text = ""
+
+                for modifier in modifiers:
+                    try:
+                        if modifier.endswith('%'):
+                            # Процентный модификатор
+                            percent = int(modifier[1:-1])
+                            if modifier[0] == '+':
+                                final_result += int(final_result * (percent / 100))
+                                modifier_text += f" + {percent}%"
+                            else:  # '-'
+                                final_result -= int(final_result * (percent / 100))
+                                modifier_text += f" - {percent}%"
+                        else:
+                            # Числовой модификатор
+                            value = int(modifier[1:])
+                            if modifier[0] == '+':
+                                final_result += value
+                                modifier_text += f" + {value}"
+                            else:  # '-'
+                                final_result -= value
+                                modifier_text += f" - {value}"
+                    except ValueError:
+                        em = discord.Embed(title='**ERROR**',
+                                           description=f"Invalid modifier format: `{modifier}`",
+                                           color=0xff0000)
+                        await ctx.send(embed=em)
+                        return
+
                 # Выбор фразы
                 if np.random.randint(0, 3) == 1:
                     phrs = phrases[np.random.randint(0, len(phrases))]
                 else:
                     phrs = phrasesd[np.random.randint(0, len(phrasesd))]
 
-                if not isextramod:
+                if modifiers:
                     em = discord.Embed(title=f'**{phrs}**',
-                                       description=f"🎲 You Rolled **{res}**. (*{plu}*)",
+                                       description=f"🎲 You Rolled **{final_result}** (Base: {base_result}{modifier_text})\n*{plu}*",
                                        color=0x7289da)
                 else:
-                    try:
-                        if paramslast.find('+%') != -1:
-                            percent = int(paramslast[2:])
-                            resnew = res + int(res * (percent / 100))
-                        elif paramslast.find('-%') != -1:
-                            percent = int(paramslast[2:])
-                            resnew = res - int(res * (percent / 100))
-                        elif paramslast.find('+') != -1:
-                            add = int(paramslast[1:])
-                            resnew = res + add
-                        elif paramslast.find('-') != -1:
-                            sub = int(paramslast[1:])
-                            resnew = res - sub
-                        else:
-                            raise ValueError("Invalid modifier format")
-
-                        em = discord.Embed(title=f'**{phrs}**',
-                                           description=f"🎲 You Rolled **{resnew}**, Actually **{res}{paramslast}** (*{plu}*)",
-                                           color=0x7289da)
-                    except ValueError as e:
-                        em = discord.Embed(title='**ERROR**',
-                                           description=f"Invalid modifier format: `{paramslast}`",
-                                           color=0xff0000)
-                        await ctx.send(embed=em)
-                        return
+                    em = discord.Embed(title=f'**{phrs}**',
+                                       description=f"🎲 You Rolled **{final_result}**. (*{plu}*)",
+                                       color=0x7289da)
 
                 em.set_author(name=f"{user}", icon_url=ctx.author.avatar)
 
@@ -317,81 +348,25 @@ async def dice(ctx, *, params):
         else:
             '''1 или промежуток или +-'''
             try:
-                if params.find(" +") != -1 or params.find(" -") != -1 or params.find(" -%") != -1 or params.find(
-                        " +%") != -1:
-                    lparams = params.split(' ')
+                # Проверяем наличие модификаторов
+                parts = params.split(' ')
+                base_part = parts[0]
+                modifiers = parts[1:] if len(parts) > 1 else []
 
-                    if len(lparams) != 2:
+                # Проверяем формат базовой части
+                if ' ' in base_part or '-' in base_part and not base_part.startswith('-'):
+                    # Это диапазон
+                    range_parts = base_part.split('-')
+                    if len(range_parts) != 2:
                         em = discord.Embed(title='**ERROR**',
-                                           description="For modifiers, use format like `10 +5` or `20 -10%`",
+                                           description="For ranges, use format like `1-10` or `1 10`",
                                            color=0xff0000)
                         await ctx.send(embed=em)
                         return
 
                     try:
-                        num = int(lparams[0])
-                        if num <= 0:
-                            raise ValueError("Number must be positive")
-                    except ValueError:
-                        em = discord.Embed(title='**ERROR**',
-                                           description="First parameter must be a positive integer!",
-                                           color=0xff0000)
-                        await ctx.send(embed=em)
-                        return
-
-                    func = lparams[1]
-                    res = np.random.randint(1, num + 1)
-
-                    try:
-                        if func.find('+%') != -1:
-                            percent = int(func[2:])
-                            resnew = res + int(res * (percent / 100))
-                        elif func.find('-%') != -1:
-                            percent = int(func[2:])
-                            resnew = res - int(res * (percent / 100))
-                        elif func.find('+') != -1:
-                            add = int(func[1:])
-                            resnew = res + add
-                        elif func.find('-') != -1:
-                            sub = int(func[1:])
-                            resnew = res - sub
-                        else:
-                            raise ValueError("Invalid modifier format")
-                    except ValueError:
-                        em = discord.Embed(title='**ERROR**',
-                                           description=f"Invalid modifier format: `{func}`",
-                                           color=0xff0000)
-                        await ctx.send(embed=em)
-                        return
-
-                    if res == num:
-                        phrs = phrasesmax[np.random.randint(0, len(phrasesmax))]
-                    elif res == 1:
-                        phrs = phrasesmin[np.random.randint(0, len(phrasesmin))]
-                    elif res == 42:
-                        phrs = phrasesxtra[0]
-                    elif res == 69:
-                        phrs = phrasesxtra[1]
-                    else:
-                        phrs = phrases[np.random.randint(0, len(phrases))]
-
-                    em = discord.Embed(title=f'**{phrs}**',
-                                       description=f"🎲 You Rolled **{resnew}** on d{num}. (actually **{res}{func}**)",
-                                       color=0x7289da)
-
-                elif params.find(' ') != -1:
-                    lparams = params.split(' ')
-
-                    if len(lparams) != 2:
-                        em = discord.Embed(title='**ERROR**',
-                                           description="For ranges, use format like `1 10`",
-                                           color=0xff0000)
-                        await ctx.send(embed=em)
-                        return
-
-                    try:
-                        num = int(lparams[0])
-                        second = int(lparams[1])
+                        num = int(range_parts[0])
+                        second = int(range_parts[1])
                         if num >= second:
                             raise ValueError("First number must be less than second")
                     except ValueError as e:
@@ -401,24 +376,59 @@ async def dice(ctx, *, params):
                         await ctx.send(embed=em)
                         return
 
-                    res = np.random.randint(num, second + 1)
+                    base_result = np.random.randint(num, second + 1)
+                    final_result = base_result
+                    modifier_text = ""
 
-                    if res == second:
+                    # Применяем модификаторы
+                    for modifier in modifiers:
+                        try:
+                            if modifier.endswith('%'):
+                                percent = int(modifier[1:-1])
+                                if modifier[0] == '+':
+                                    final_result += int(final_result * (percent / 100))
+                                    modifier_text += f" + {percent}%"
+                                else:  # '-'
+                                    final_result -= int(final_result * (percent / 100))
+                                    modifier_text += f" - {percent}%"
+                            else:
+                                value = int(modifier[1:])
+                                if modifier[0] == '+':
+                                    final_result += value
+                                    modifier_text += f" + {value}"
+                                else:  # '-'
+                                    final_result -= value
+                                    modifier_text += f" - {value}"
+                        except ValueError:
+                            em = discord.Embed(title='**ERROR**',
+                                               description=f"Invalid modifier format: `{modifier}`",
+                                               color=0xff0000)
+                            await ctx.send(embed=em)
+                            return
+
+                    # Выбор фразы
+                    if final_result == second:
                         phrs = phrasesmax[np.random.randint(0, len(phrasesmax))]
-                    elif res == num:
+                    elif final_result == num:
                         phrs = phrasesmin[np.random.randint(0, len(phrasesmin))]
-                    elif res == 42:
+                    elif final_result == 42:
                         phrs = phrasesxtra[0]
                     else:
                         phrs = phrases[np.random.randint(0, len(phrases))]
 
-                    em = discord.Embed(title=f'**{phrs}**',
-                                       description=f"🎲 You Rolled **{res}**. From {num} to {second}",
-                                       color=0x7289da)
+                    if modifiers:
+                        em = discord.Embed(title=f'**{phrs}**',
+                                           description=f"🎲 You Rolled **{final_result}** (Base: {base_result}{modifier_text}) from {num} to {second}",
+                                           color=0x7289da)
+                    else:
+                        em = discord.Embed(title=f'**{phrs}**',
+                                           description=f"🎲 You Rolled **{final_result}** from {num} to {second}",
+                                           color=0x7289da)
 
                 else:
+                    # Это простой бросок dN
                     try:
-                        num = int(params)
+                        num = int(base_part)
                         if num <= 0:
                             raise ValueError("Number must be positive")
                     except ValueError:
@@ -428,22 +438,56 @@ async def dice(ctx, *, params):
                         await ctx.send(embed=em)
                         return
 
-                    res = np.random.randint(1, num + 1)
+                    base_result = np.random.randint(1, num + 1)
+                    final_result = base_result
+                    modifier_text = ""
 
-                    if res == num:
+                    # Применяем модификаторы
+                    for modifier in modifiers:
+                        try:
+                            if modifier.endswith('%'):
+                                percent = int(modifier[1:-1])
+                                if modifier[0] == '+':
+                                    final_result += int(final_result * (percent / 100))
+                                    modifier_text += f" + {percent}%"
+                                else:  # '-'
+                                    final_result -= int(final_result * (percent / 100))
+                                    modifier_text += f" - {percent}%"
+                            else:
+                                value = int(modifier[1:])
+                                if modifier[0] == '+':
+                                    final_result += value
+                                    modifier_text += f" + {value}"
+                                else:  # '-'
+                                    final_result -= value
+                                    modifier_text += f" - {value}"
+                        except ValueError:
+                            em = discord.Embed(title='**ERROR**',
+                                               description=f"Invalid modifier format: `{modifier}`",
+                                               color=0xff0000)
+                            await ctx.send(embed=em)
+                            return
+
+                    # Выбор фразы
+                    if final_result == num:
                         phrs = phrasesmax[np.random.randint(0, len(phrasesmax))]
-                    elif res == 1:
+                    elif final_result == 1:
                         phrs = phrasesmin[np.random.randint(0, len(phrasesmin))]
-                    elif res == 42:
+                    elif final_result == 42:
                         phrs = phrasesxtra[0]
-                    elif res == 69:
+                    elif final_result == 69:
                         phrs = phrasesxtra[1]
                     else:
                         phrs = phrases[np.random.randint(0, len(phrases))]
 
-                    em = discord.Embed(title=f'**{phrs}**',
-                                       description=f"🎲 You Rolled **{res}** on d{num}.",
-                                       color=0x7289da)
+                    if modifiers:
+                        em = discord.Embed(title=f'**{phrs}**',
+                                           description=f"🎲 You Rolled **{final_result}** on d{num}. (Base: {base_result}{modifier_text})",
+                                           color=0x7289da)
+                    else:
+                        em = discord.Embed(title=f'**{phrs}**',
+                                           description=f"🎲 You Rolled **{final_result}** on d{num}.",
+                                           color=0x7289da)
 
                 em.set_author(name=f"{user}", icon_url=ctx.author.avatar)
 
@@ -461,7 +505,6 @@ async def dice(ctx, *, params):
                            description=f"Unexpected error: {str(e)}",
                            color=0xff0000)
         await ctx.send(embed=em)
-
 
 @bot.command(invoke_without_command=True, aliases=["l"])
 async def loot(ctx):
