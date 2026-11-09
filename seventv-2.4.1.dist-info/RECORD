@@ -1,0 +1,11 @@
+seventv-2.4.1.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
+seventv-2.4.1.dist-info/LICENSE,sha256=IwGE9guuL-ryRPEKi6wFPI_zOhg7zDZbTYuHbSt_SAk,35823
+seventv-2.4.1.dist-info/METADATA,sha256=dP3MMz2Nuk4D3TO3R02NNK-Tq7xRToLjBq5i22uShEQ,904
+seventv-2.4.1.dist-info/RECORD,,
+seventv-2.4.1.dist-info/REQUESTED,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0
+seventv-2.4.1.dist-info/WHEEL,sha256=oiQVh_5PnQM0E3gPdiz09WCNmwiHDMaGer_elqB3coM,92
+seventv-2.4.1.dist-info/top_level.txt,sha256=OfwSdFt9OPY6-2VyAemUyuEnl5kc8naBzA-Nxs_aH0U,8
+seventv/__init__.py,sha256=MWFi0QNq_piDbCUZjpLeGFdzeWYv6Qix1GZt-Qv4VGE,364
+seventv/__pycache__/__init__.cpython-312.pyc,,
+seventv/__pycache__/seventv.cpython-312.pyc,,
+seventv/seventv.py,sha256=AbNjg-aPUZ8NicV7nTy4cuP6Eh6aJKhAt10--FO9MlM,4250
