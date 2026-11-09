@@ -220,7 +220,7 @@ async def dice(ctx, *, params):
                         modifiers.append(part)
                     else:
                         em = discord.Embed(title='**ERROR**',
-                                           description=f"Invalid format: `{part}`\nUse dice format: `XdY±Z` and modifiers: `±N` or `±%N`",
+                                           description=f"Invalid format: `{part}`\nUse dice format: `XdY±Z` and modifiers: `±N` or `±N%`",
                                            color=0xff0000)
                         await ctx.send(embed=em)
                         return
@@ -951,10 +951,10 @@ async def help_cmd(ctx):
             "`!d хуй, пизда, 36` — выбор из трёх вариантов, разграничивать запятой\n"
             "`!d 1d20+5 2d20-5` — добавить/убавить к **каждому** кубику\n"
             "`!d 20 +3` — прибавить +3 к результату (также `-число`)\n"
-            "`!d 20 +%50` — добавить 50% к результату (выпало 10 → стало 15), "
+            "`!d 20 +50%` — добавить 50% к результату (выпало 10 → стало 15), "
             "также можно `-%число`\n"
             "`!d 3d20 1d40 +3` — добавит +3 **только к общему** результату, "
-            "а не к каждому кубику (также `-число`, `±%число`)"
+            "а не к каждому кубику (также `-число`, `±число%`)"
         ),
         inline=False
     )
